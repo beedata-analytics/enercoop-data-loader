@@ -202,7 +202,7 @@ def get_contracts(paths):
                         'dateEndDay': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateEndDay']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateEndDay']] else None
                     }
                 except ValueError:
-                    raise('Authorization row is not well formed due to dates or bad values: [%s]' % authorization)
+                    raise Exception('Authorization row is not well formed due to dates or bad values: [%s]' % authorization)
 
                 contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['auth'] = auth_dict
                 contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']['auth'] = {
