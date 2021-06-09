@@ -70,11 +70,15 @@ def get_modification_dict(row, number, modification):
     :param number: The modification number being processed
     :param modification: One of power or tariffId
     """
-    result = {
-        modification: int(float(row[settings.CONTRACTS_HISTORY_COLUMNS[modification]+'%s' % number])*1000) if modification == 'power' else row[settings.CONTRACTS_HISTORY_COLUMNS[modification]+'%s' % number],
-        'dateStart': date_converter(row[settings.CONTRACTS_HISTORY_COLUMNS['dateStart']+'%s' % number], format=settings.CONTRACTS_DATETIME_FORMAT, str_format=settings.DATETIME_FORMAT),
-        'dateEnd': date_converter(row[settings.CONTRACTS_HISTORY_COLUMNS['dateEnd']+'%s' % number], format=settings.CONTRACTS_DATETIME_FORMAT, last_second=True, str_format=settings.DATETIME_FORMAT)
-    }
+    try:
+        result = {
+            modification: int(float(row[settings.CONTRACTS_HISTORY_COLUMNS[modification]+'%s' % number])*1000) if modification == 'power' else row[settings.CONTRACTS_HISTORY_COLUMNS[modification]+'%s' % number],
+            'dateStart': date_converter(row[settings.CONTRACTS_HISTORY_COLUMNS['dateStart']+'%s' % number], format=settings.CONTRACTS_DATETIME_FORMAT, str_format=settings.DATETIME_FORMAT),
+            'dateEnd': date_converter(row[settings.CONTRACTS_HISTORY_COLUMNS['dateEnd']+'%s' % number], format=settings.CONTRACTS_DATETIME_FORMAT, last_second=True, str_format=settings.DATETIME_FORMAT)
+        }
+    except ValueError:
+        logger.error('Contract row is not defining well the contract modification fields (dates) for contract [%s] on its historic change number [%s]: dateStart = [%s] dateEnd = [%s]' % (row[settings.CONTRACT_COLUMNS['contractId']], number, row[settings.CONTRACTS_HISTORY_COLUMNS['dateStart']+'%s' % number], row[settings.CONTRACTS_HISTORY_COLUMNS['dateEnd']+'%s' % number]))
+        raise Exception('Error parsing contract row: %s' % row)
 
     return result
 
@@ -98,7 +102,10 @@ def get_contracts(paths):
         # date end that will be used for history creation
         date_end = datetime(2099,1,1).strftime(settings.DATETIME_FORMAT)
         if contract[settings.CONTRACT_COLUMNS['dateEnd']]: 
-            date_end = date_converter(contract[settings.CONTRACT_COLUMNS['dateEnd']], format='%d/%m/%Y', last_second=True, str_format=settings.DATETIME_FORMAT)
+            try:
+                date_end = date_converter(contract[settings.CONTRACT_COLUMNS['dateEnd']], format='%d/%m/%Y', last_second=True, str_format=settings.DATETIME_FORMAT)
+            except ValueError:
+                raise Exception('Contract row for contract [%s] has end date in bad format: [%s]' % (contract[settings.CONTRACT_COLUMNS['contractId']], contract[settings.CONTRACT_COLUMNS['dateEnd']]))
             
         contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]] = {
             'document': {
@@ -185,14 +192,18 @@ def get_contracts(paths):
         for authorization in authorizations:
             # search on full authorization list
             if authorization[settings.AUTHORIZATIONS_COLUMNS['meteringPointId']] == contract[settings.CONTRACT_COLUMNS['meteringPointId']]:
-                auth_dict = {
-                    'auth30': str2bool(authorization[settings.AUTHORIZATIONS_COLUMNS['auth30']]),
-                    'dateStart30': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateStart30']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateStart30']] else None,
-                    'dateEnd30': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateEnd30']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateEnd30']] else None,
-                    'authDay': str2bool(authorization[settings.AUTHORIZATIONS_COLUMNS['authDay']]),
-                    'dateStartDay': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateStartDay']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateStartDay']] else None,
-                    'dateEndDay': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateEndDay']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateEndDay']] else None
-                }
+                try:
+                    auth_dict = {
+                        'auth30': str2bool(authorization[settings.AUTHORIZATIONS_COLUMNS['auth30']]),
+                        'dateStart30': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateStart30']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateStart30']] else None,
+                        'dateEnd30': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateEnd30']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateEnd30']] else None,
+                        'authDay': str2bool(authorization[settings.AUTHORIZATIONS_COLUMNS['authDay']]),
+                        'dateStartDay': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateStartDay']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateStartDay']] else None,
+                        'dateEndDay': date_converter(authorization[settings.AUTHORIZATIONS_COLUMNS['dateEndDay']], format=settings.AUTHORIZATIONS_DATETIME_FORMAT) if authorization[settings.AUTHORIZATIONS_COLUMNS['dateEndDay']] else None
+                    }
+                except ValueError:
+                    raise('Authorization row is not well formed due to dates or bad values: [%s]' % authorization)
+
                 contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['auth'] = auth_dict
                 contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']['auth'] = {
                     'auth30': auth_dict['auth30'],
@@ -217,7 +228,13 @@ def get_contracts(paths):
             # search on full hours list
             if hour[settings.HOURS_COLUMNS['meteringPointId']] == contract[settings.CONTRACT_COLUMNS['meteringPointId']]:
                 date_end = date_converter(contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['dateEnd'], format=settings.DATETIME_FORMAT)
-                if hour[settings.HOURS_COLUMNS['modification']] and date_end > date_converter(hour[settings.HOURS_COLUMNS['modification']], format=settings.HOURS_DATETIME_FORMAT):
+                
+                try:
+                    mod_date = date_converter(hour[settings.HOURS_COLUMNS['modification']], format=settings.HOURS_DATETIME_FORMAT)
+                except ValueError:
+                    raise('Hour row end date [%s] is not well formed: [%s]' % (hour[settings.HOURS_COLUMNS['modification']], hour))
+
+                if hour[settings.HOURS_COLUMNS['modification']] and date_end > mod_date:
                     if hour[settings.HOURS_COLUMNS['currentHours']]:
                         # add discrimination schedule on tariffHistory, tariffId, and tariff_ fields
                         for t in  contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffHistory']:
