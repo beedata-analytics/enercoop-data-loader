@@ -232,7 +232,7 @@ def get_contracts(paths):
                 try:
                     mod_date = date_converter(hour[settings.HOURS_COLUMNS['modification']], format=settings.HOURS_DATETIME_FORMAT)
                 except ValueError:
-                    raise('Hour row end date [%s] is not well formed: [%s]' % (hour[settings.HOURS_COLUMNS['modification']], hour))
+                    raise Exception('Hour row end date [%s] is not well formed: [%s]' % (hour[settings.HOURS_COLUMNS['modification']], hour))
 
                 if hour[settings.HOURS_COLUMNS['modification']] and date_end > mod_date:
                     if hour[settings.HOURS_COLUMNS['currentHours']]:
