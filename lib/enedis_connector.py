@@ -52,7 +52,7 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
     :param from_date: where request start
     :param to_date: where request finish
     """
-    logger.debug('Preparing body to recover [%s] measures from Enedis service...' % (measures_type))
+    logger.debug('Preparing body to recover [%s] measures from Enedis service for contract [%s]...' % (measures_type, customer['document']['contractId']))
     body = {
         'demande': {
             'initiateurLogin': settings.ENEDIS_INIT_LOGIN_MAIL,
@@ -94,14 +94,14 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
     error = None
     try:
         data = ws_client.service.consulterMesuresDetaillees(**body)
-        logger.debug('Measures recovered successfully from Enedis: %s' % data)
+        logger.debug('Measures recovered successfully from Enedis for contract [%s]: %s' % (customer['document']['contractId'], data))
     except Exception as e:
         clean_body = deepcopy(body)
         del clean_body['demande']['declarationAccordClient']
         del clean_body['demande']['pointId']
         del clean_body['demande']['contratId']
         del clean_body['demande']['initiateurLogin']
-        logger.warning('Cannot recover data from Enedis for contract %s: %s. Data sent to Enedis: %s' % (customer['document']['contractId'], e, clean_body))
+        logger.warning('Cannot recover data from Enedis for contract [%s]: %s. Data sent to Enedis: %s' % (customer['document']['contractId'], e, clean_body))
         error = str(e)
         
         

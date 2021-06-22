@@ -25,7 +25,7 @@ def setup_logger(args):
         raise ValueError('Invalid log level: %s' % loglevel)
     logger = logging.getLogger("app")
     logger.setLevel(numeric_level)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('PID [%(process)d] - %(asctime)s - %(levelname)s - %(message)s')
     
     # File handler to output to .log file
     log_file = "beedata_script_%s.log" % datetime.now().strftime("%Y-%m-%dT%H_%M_%SZ")
