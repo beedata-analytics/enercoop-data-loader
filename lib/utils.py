@@ -414,6 +414,7 @@ def process_contract(id, data, customer_type, margindays): #mongo_db, ws_client,
         for field, value in mongo_contract.items():
             if 'ts_' in field and value and isinstance(value, str):
                 mongo_contract[field] = date_converter(value, format=settings.DATETIME_FORMAT)
+        logger.debug('Info recovered from MongoDB for contract [%s]: %s' % (id, mongo_contract))
     else:
         mongo_contract = {}
     
@@ -575,7 +576,7 @@ def process_contract(id, data, customer_type, margindays): #mongo_db, ws_client,
             logger.debug('Contract [%s] does not have authorization for [%s] measures' % (id, i))       
         
         
-        logger.debug('Sending [%s] data to Beedata...' % (i))
+        logger.debug('Sending [%s] data for contract [%s] to Beedata...' % (i, id))
         if result and 'measurements' in result and len(result['measurements']):
             api_result = beedata_client.send_data(result, 'measures')
             report_results[i]['beedata_call_status'] = api_result.status_code
