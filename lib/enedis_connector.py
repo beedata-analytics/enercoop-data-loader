@@ -72,11 +72,11 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
 
     if measures_type == 'PMAX':
         body['demande']['measuresPas'] == 'P1M'
-        body['demande']['grandeurPhysique'] == 'PMA'
+        body['demande']['grandeurPhysique'] = 'PMA'
     elif measures_type == 'CDC':
-        body['demande']['grandeurPhysique'] == 'PA'
+        body['demande']['grandeurPhysique'] = 'PA'
     else: # consoglo
-        body['demande']['grandeurPhysique'] == 'EA'
+        body['demande']['grandeurPhysique'] = 'EA'
     
     
     logger.debug('Body data: %s' % (body))
