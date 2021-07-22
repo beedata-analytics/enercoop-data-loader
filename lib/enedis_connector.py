@@ -23,13 +23,16 @@ class MyloggerPlugin(Plugin):
     def ingress(self, envelope, http_headers, operation):
         #print('Response:')
         #print(etree.tostring(envelope, pretty_print=False))
+        logger.debug('Enedis response ---------')
+        logger.debug(etree.tostring(envelope, pretty_print=False))    
+        logger.debug('-------------------------')
         return envelope, http_headers
 
     def egress(self, envelope, http_headers, operation, binding_options):
         #print('Request:')
         #print(etree.tostring(envelope, pretty_print=False))
-        logger.debug('Enedis response ---------')
-        logger.debug(etree.tostring(envelope, pretty_print=True))    
+        logger.debug('Request body: -----------')
+        logger.debug(etree.tostring(envelope, pretty_print=False))    
         logger.debug('-------------------------')
         return envelope, http_headers
 
@@ -41,8 +44,12 @@ def init_webservice_client():
     session = Session()
     session.auth = HTTPBasicAuth(settings.ENEDIS_LOGIN_USER, settings.ENEDIS_LOGIN_PASSWORD)
     client = Client(settings.WSDL_PATH, transport=Transport(session=session), plugins=[MyloggerPlugin()])
+
+    service = client.create_service(
+        '{http://www.enedis.fr/sge/b2b/services/consultationmesuresdetaillees/v2.0}AdamConsultationMesuresServiceReadHttpBinding',
+        settings.ENEDIS_URL or 'https://sge-b2b.enercoop.org/')
     
-    return client
+    return service
 
 
 def get_data(ws_client, customer, measures_type, customer_type, from_date, to_date):
@@ -83,7 +90,7 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
     data = None
     error = None
     try:
-        data = ws_client.service.consulterMesuresDetaillees(**body)
+        data = ws_client.consulterMesuresDetaillees(**body)
         logger.debug('Measures recovered successfully from Enedis for contract [%s]: %s' % (customer['document']['contractId'], data))
     except Exception as e:
         clean_body = deepcopy(body)
