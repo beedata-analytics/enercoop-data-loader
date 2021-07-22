@@ -111,21 +111,21 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
         elif measures_type == 'CONSOGLO':
             type = 'dailyElectricityConsumption'
             
-        doc = {
-            'deviceId': customer['document']['meteringPointId'],
-            'meteringPointId': customer['document']['meteringPointId'],
-            'readings': [{
-                'type': type,
-                'period': 'INSTANT',
-                'unit': data['body']['grandeur']['unite'] if measures_type != 'CDC' else 'Wh'
-            }],
-            'measurements': []
-        }
-        
-        ts = None
         n = 1
-        for key, measure in data['body']['grandeur']:
-            if key == 'mesure':
+        for grandeur in data['grandeur']:
+            if not doc:
+                doc = {
+                    'deviceId': customer['document']['meteringPointId'],
+                    'meteringPointId': customer['document']['meteringPointId'],
+                    'readings': [{
+                        'type': type,
+                        'period': 'INSTANT',
+                        'unit': grandeur['unite'] if measures_type != 'CDC' else 'Wh'
+                    }],
+                    'measurements': []
+                }
+            
+            for measure in grandeur['mesure']:
                 doc['measurements'].append({
                     'type': type,
                     'timestamp': measure['d'].astimezone(pytz.utc).strftime(settings.DATETIME_FORMAT),
