@@ -126,11 +126,12 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
                 }
             
             for measure in grandeur['mesure']:
-                doc['measurements'].append({
-                    'type': type,
-                    'timestamp': measure['d'].astimezone(pytz.utc).strftime(settings.DATETIME_FORMAT),
-                    'value': int(int(measure['v']) * 0.5) if measures_type == 'CDC' else int(measure['v']) 
-                })
+                if measure.get('v', None) is not None:
+                    doc['measurements'].append({
+                        'type': type,
+                        'timestamp': measure['d'].astimezone(pytz.utc).strftime(settings.DATETIME_FORMAT),
+                        'value': int(int(measure['v']) * 0.5) if measures_type == 'CDC' else int(measure['v'])
+                    })
                     
                 n += 1
             
