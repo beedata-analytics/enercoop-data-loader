@@ -9,7 +9,6 @@ from lxml import etree
 
 # time imports
 import pytz
-from datetime import timedelta, datetime
 
 import logging
 from copy import deepcopy
@@ -21,22 +20,20 @@ logger = logging.getLogger("app")
 
 class MyloggerPlugin(Plugin):
     def ingress(self, envelope, http_headers, operation):
-        #print('Response:')
-        #print(etree.tostring(envelope, pretty_print=False))
+        # print('Response:')
+        # print(etree.tostring(envelope, pretty_print=False))
         logger.debug('Enedis response ---------')
         logger.debug(etree.tostring(envelope, pretty_print=False))    
         logger.debug('-------------------------')
         return envelope, http_headers
 
     def egress(self, envelope, http_headers, operation, binding_options):
-        #print('Request:')
-        #print(etree.tostring(envelope, pretty_print=False))
+        # print('Request:')
+        # print(etree.tostring(envelope, pretty_print=False))
         logger.debug('Request body: -----------')
         logger.debug(etree.tostring(envelope, pretty_print=False))    
         logger.debug('-------------------------')
         return envelope, http_headers
-
-
 
 
 def init_webservice_client():
@@ -71,8 +68,8 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
             'dateDebut': from_date.strftime('%Y-%m-%d'),                    
             'dateFin': to_date.strftime('%Y-%m-%d'),
             'mesuresCorrigees': False,
-            'soutirage': True, #TBD
-            'injection': False, #TBD
+            'soutirage': True,  # TBD
+            'injection': False,  # TBD
             'accordClient': True,
         }
     }
@@ -82,11 +79,10 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
         body['demande']['grandeurPhysique'] = 'PMA'
     elif measures_type == 'CDC':
         body['demande']['grandeurPhysique'] = 'PA'
-    else: # consoglo
+    else:  # consoglo
         body['demande']['grandeurPhysique'] = 'EA'
-    
-    
-    logger.debug('Body data: %s' % (body))
+
+    logger.debug('Body data: %s' % body)
     data = None
     error = None
     try:
@@ -99,26 +95,23 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
         logger.warning('Cannot recover data from Enedis for contract [%s]: %s. Data sent to Enedis: %s' % (customer['document']['contractId'], e, clean_body))
         error = str(e)
         
-        
-    
     doc = None
     if data:
-        type = None
+        type_ = None
         if measures_type == 'CDC':
-            type = 'electricityConsumption'
+            type_ = 'electricityConsumption'
         elif measures_type == 'PMAX':
-            type = 'power'
+            type_ = 'power'
         elif measures_type == 'CONSOGLO':
-            type = 'dailyElectricityConsumption'
+            type_ = 'dailyElectricityConsumption'
             
-        n = 1
         for grandeur in data['grandeur']:
             if not doc:
                 doc = {
                     'deviceId': customer['document']['meteringPointId'],
                     'meteringPointId': customer['document']['meteringPointId'],
                     'readings': [{
-                        'type': type,
+                        'type': type_,
                         'period': 'INSTANT',
                         'unit': grandeur['unite'] if measures_type != 'CDC' else 'Wh'
                     }],
@@ -126,19 +119,17 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
                 }
             
             for measure in grandeur['mesure']:
-                if measure.get('v', None) is not None:
+                if measure['v'] is not None:
                     doc['measurements'].append({
-                        'type': type,
+                        'type': type_,
                         'timestamp': measure['d'].astimezone(pytz.utc).strftime(settings.DATETIME_FORMAT),
                         'value': int(int(measure['v']) * 0.5) if measures_type == 'CDC' else int(measure['v'])
                     })
-                    
-                n += 1
-            
-    else:
-        doc = {'error': error}
-        
-    return doc
-    
-    
-    
+                    logger.warning('Enedis measurment for contract [%s] on timestamp [%s] is null' % (customer['document']['contractId'], measure['d'].astimezone(pytz.utc).strftime(settings.DATETIME_FORMAT)))
+
+        if len(doc['measurements']) == 0:
+            return {'error': 'All measures for contract [%s] are null' % customer['document']['contractId']}
+
+        return doc
+
+    return {'error': error}
