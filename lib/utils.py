@@ -242,7 +242,7 @@ def get_contracts(paths):
                                 t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']  + '~' +hour[settings.HOURS_COLUMNS['currentHours']]
                         contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' +hour[settings.HOURS_COLUMNS['currentHours']]
                         contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' +hour[settings.HOURS_COLUMNS['currentHours']] 
-                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']['hours'] = hour[settings.HOURS_COLUMNS['futureHours']]
+                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']['hours'] = hour[settings.HOURS_COLUMNS['currentHours']]
                 break
                 
         if not 'hours' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']:
