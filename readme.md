@@ -64,9 +64,11 @@ If script fails to read the WSDL file inner references they may be changed manua
 
 Once everything is setup we can run by calling the main `task.py` script like follows:
 
-`python task.py --contracts path/to/contracts.csv --authorizations path/to/authorizations.csv --hours path/to/hours.csv --loglevel INFO`
+`python task.py --contracts path/to/contracts.csv --authorizations path/to/authorizations.csv --hours path/to/hours.csv --loglevel INFO --type PMAX`
 
 If more verbose information is needed we can set --loglevel at DEBUG wich will verbose everything, including detailed information.
+
+Parameter `--type` is optional. All measures will be fetched it is not set.
 
 If it works correctly it should add information to the defined MongoDB database collections:
 
