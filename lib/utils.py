@@ -549,8 +549,8 @@ def process_contract(id, data, customer_type, margindays, measure_types):
                         report_results[i]['error'] = result['error'] 
                 
                 if dates['forward']:
-                    from_date = dates['forward']['from_date']
                     to_date = dates['forward']['to_date']
+                    from_date = to_date - timedelta(days=365) if i == 'PMAX' else dates['forward']['from_date']
 
                     logger.info('Recovering "forward" [%s] measurements from Enedis service for contract [%s]: from [%s] to [%s]...' % (i, id, from_date, to_date))
                     result2 = get_data(ws_client, data, i, customer_type, from_date, to_date)

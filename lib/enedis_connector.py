@@ -75,7 +75,7 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
     }
 
     if measures_type == 'PMAX':
-        body['demande']['mesuresPas'] = 'P1M'
+        body['demande']['mesuresPas'] = 'P1D'
         body['demande']['grandeurPhysique'] = 'PMA'
     elif measures_type == 'CDC':
         body['demande']['grandeurPhysique'] = 'PA'
