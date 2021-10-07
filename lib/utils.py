@@ -386,16 +386,14 @@ def get_measures_dates(authorization, date_start, date_end, contract, type, marg
     return result
 
     
-def process_contract(id, data, customer_type, margindays): #mongo_db, ws_client, beedata_client, margindays):
+def process_contract(id, data, customer_type, margindays, measure_types):
     """ Main function to process a single contract (upload or update contract on Beedata and add its measures too).
     
     :param id: contractId. Main connector between Enercoop and Beedata
     :param data: contract document containing all information created on get_contracts
     :param customer_type: one of residential or tertiary
-    :param mongo_db: mongo connection to search for contract stored at mongodb and update if needed
-    :param ws_client: connector to Enedis webservice used to get contract measures
-    :param beedata_client: connector to Beedata API used to save contracts and measures
-    :param margindays: number of days we leave as margin 
+    :param margindays: number of days we leave as margin
+    :param measure_types: measure types to recover from Enedis
     """
     
     if 'error' in data:
@@ -427,14 +425,17 @@ def process_contract(id, data, customer_type, margindays): #mongo_db, ws_client,
     # getting measures
     ts_min = {}
     ts_max = {}
-    dates = {}
     report_results = {
         'PMAX': {},
         'CDC': {'iterations': []},
         'CONSOGLO': {}
     }
+
+    # set measure types to recover
+    types = ['PMAX', 'CONSOGLO', 'CDC'] if measure_types == 'ALL' else [measure_types]
+
     # repeat for each measure type
-    for i in ['PMAX', 'CONSOGLO', 'CDC']:
+    for i in types:
         result = {}
         dates = get_measures_dates(data['auth'], data['document']['dateStart'], data['document']['dateEnd'], mongo_contract, i, margindays)
         if dates:
@@ -550,7 +551,7 @@ def process_contract(id, data, customer_type, margindays): #mongo_db, ws_client,
                 if dates['forward']:
                     from_date = dates['forward']['from_date']
                     to_date = dates['forward']['to_date']
-                    
+
                     logger.info('Recovering "forward" [%s] measurements from Enedis service for contract [%s]: from [%s] to [%s]...' % (i, id, from_date, to_date))
                     result2 = get_data(ws_client, data, i, customer_type, from_date, to_date)
                     report_results[i] = {
@@ -597,7 +598,7 @@ def process_contract(id, data, customer_type, margindays): #mongo_db, ws_client,
     
     report['measures_report'] = report_results
     logger.info('Updating mongo contract with ts_min values [%s] and ts_max values [%s]' % (ts_min, ts_max))
-    res = update_mongo_contract(mongo_db, id, ts_min, ts_max, current_etag, data['csv'][settings.CONTRACT_COLUMNS['meteringPointId']])
+    update_mongo_contract(mongo_db, id, ts_min, ts_max, current_etag, data['csv'][settings.CONTRACT_COLUMNS['meteringPointId']])
     report['finish'] = datetime.now()
     logger.info('Loop for contract [%s] finished.' % id)
     
@@ -638,11 +639,5 @@ def update_mongo_contract(mongo_db, id, ts_min, ts_max, etag, prm):
         if i in ts_max and ts_max[i]:
             doc['ts_max_%s' % i] = ts_max[i]
             
-    res = mongo_db['Contracts'].find_and_modify({'contractId': id}, {'$set': doc}, upsert=True)
+    mongo_db['Contracts'].find_and_modify({'contractId': id}, {'$set': doc}, upsert=True)
     logger.debug('MongoDB contract [%s] successfully saved with last modification dates: [%s]' % (id, doc))
-    
-        
-
-    
-
-        

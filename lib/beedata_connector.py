@@ -3,7 +3,6 @@ import urllib3
 import settings
 from requests import request, Session
 from json import dumps
-import logging
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
