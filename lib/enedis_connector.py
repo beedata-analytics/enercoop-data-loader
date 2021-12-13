@@ -94,7 +94,7 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
         del clean_body['demande']['initiateurLogin']
         logger.warning('Cannot recover data from Enedis for contract [%s]: %s. Data sent to Enedis: %s' % (customer['document']['contractId'], e, clean_body))
         error = str(e)
-        
+
     doc = None
     if data:
         type_ = None
@@ -125,6 +125,7 @@ def get_data(ws_client, customer, measures_type, customer_type, from_date, to_da
                         'timestamp': measure['d'].astimezone(pytz.utc).strftime(settings.DATETIME_FORMAT),
                         'value': int(int(measure['v']) * 0.5) if measures_type == 'CDC' else int(measure['v'])
                     })
+                else:
                     logger.warning('Enedis measurment for contract [%s] on timestamp [%s] is null' % (customer['document']['contractId'], measure['d'].astimezone(pytz.utc).strftime(settings.DATETIME_FORMAT)))
 
         if len(doc['measurements']) == 0:

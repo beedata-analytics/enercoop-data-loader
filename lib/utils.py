@@ -318,7 +318,7 @@ def upload_contract(mongo_contract, data, current_etag, beedata_client):
     
     return contract_report
 
-def get_measures_dates(authorization, date_start, date_end, contract, type, margindays):
+def get_measures_dates(authorization, date_start, date_end, contract, type, margindays, force_update):
     """ Return from_date for given measure type. It has to determined between authorization files, contract dates and last measure stored on MongoDB
     
     :param authorization: contract authorization dict
@@ -355,7 +355,7 @@ def get_measures_dates(authorization, date_start, date_end, contract, type, marg
         return None 
     
     
-    if mongo_contract and 'ts_min_%s' % type in mongo_contract and mongo_contract['ts_min_%s' % type] and 'ts_max_%s' % type in mongo_contract and mongo_contract['ts_max_%s' % type]:
+    if not force_update and mongo_contract and 'ts_min_%s' % type in mongo_contract and mongo_contract['ts_min_%s' % type] and 'ts_max_%s' % type in mongo_contract and mongo_contract['ts_max_%s' % type]:
         if mongo_contract['ts_min_%s' % type] > result['min']:
             result['backward'] = {
                 'from_date': result['min'],
@@ -386,7 +386,7 @@ def get_measures_dates(authorization, date_start, date_end, contract, type, marg
     return result
 
     
-def process_contract(id, data, customer_type, margindays, measure_types):
+def process_contract(id, data, customer_type, margindays, measure_types, force_update):
     """ Main function to process a single contract (upload or update contract on Beedata and add its measures too).
     
     :param id: contractId. Main connector between Enercoop and Beedata
@@ -437,7 +437,7 @@ def process_contract(id, data, customer_type, margindays, measure_types):
     # repeat for each measure type
     for i in types:
         result = {}
-        dates = get_measures_dates(data['auth'], data['document']['dateStart'], data['document']['dateEnd'], mongo_contract, i, margindays)
+        dates = get_measures_dates(data['auth'], data['document']['dateStart'], data['document']['dateEnd'], mongo_contract, i, margindays, force_update)
         if dates:
             if i == 'CDC':
                 if dates['backward']:
@@ -473,7 +473,7 @@ def process_contract(id, data, customer_type, margindays, measure_types):
                         
                         if error:
                             break
-                        
+
                     if result and len(result['measurements']) > 1:
                         aux = result['measurements']
                         report_results[i]['measures'] = len(aux)
