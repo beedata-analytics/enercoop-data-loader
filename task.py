@@ -48,12 +48,15 @@ def setup_logger(args):
 def multi_load(item):
     margindays = args.margindays
     measure_types = args.type
+    force_update = args.forceupdate
+
     result = process_contract(
         item['contract'], 
         item['data'], 
         item['type'],
         margindays,
-        measure_types
+        measure_types,
+        force_update
     )
     
     if result:
@@ -72,13 +75,14 @@ def run(args):
     
     margindays = args.margindays
     measure_types = args.type
-    
+    force_update = args.forceupdate
+
     # process every contract (row on the CSV)
     if args.processes == 1:
         logger.info('Processing files with single thread')
         for contract, data in contracts.items():
             result = process_contract(contract, data, data['contract_type'], #mongo_db, ws_client, beedata_client, 
-                                      margindays, measure_types)
+                                      margindays, measure_types, force_update)
             if result:
                 report.add_results(contract, result)
     else:
@@ -114,8 +118,12 @@ if __name__ == '__main__':
                         help='Number of days to let some margin. It will set "top" date as: today - margindays. Default to 10.')
     parser.add_argument('--type', type=str, choices=['PMAX', 'CONSOGLO', 'CDC', 'ALL'], default='ALL',
                         help='Measures type to recover.')
+    parser.add_argument('--forceupdate', type=str, choices=['YES', 'NO'], default='NO',
+                        help='Force update ignoring stored dates from database.')
     # reading command line arguments
     args = parser.parse_args()
+
+    args.forceupdate = True if args.forceupdate == 'YES' else False
     
     # start
     run(args)
