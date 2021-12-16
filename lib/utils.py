@@ -441,14 +441,14 @@ def process_contract(id, data, customer_type, margindays, measure_types):
         if dates:
             if i == 'CDC':
                 if dates['backward']:
-                    logger.info('Starting "backward" loop to recover [CDC] measures for contract [%s]...' % id)
+                    logger.info('Starting "backward" loop to recover [CDC] measures for contract [%s] from [%s] to [%s]' % (id, dates['backward']['from_date'].strftime('%d/%m/%Y'), dates['backward']['to_date'].strftime('%d/%m/%Y')))
                     from_date = dates['backward']['to_date']
                     #from_date = dates['backward']['from_date']
                     to_date = from_date - timedelta(days=7)
                     error = 0
                     #while to_date > dates['backward']['to_date']:
                     while to_date > dates['backward']['from_date']:
-                        logger.info('Recovering "backwards" [CDC] measures from Enedis service: from [%s] to [%s]...' % (to_date.strftime('%d/%m/%Y'), from_date.strftime('%d/%m/%Y'))) 
+                        logger.info('Recovering "backwards" [CDC] measures for contract [%s] from Enedis service: from [%s] to [%s]' % (id, to_date.strftime('%d/%m/%Y'), from_date.strftime('%d/%m/%Y')))
                         result2 = get_data(ws_client, data, i, customer_type, to_date, from_date)
                         recover_report = {
                             'from_date': to_date.strftime('%d/%m/%Y'),
