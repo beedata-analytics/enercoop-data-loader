@@ -4,11 +4,11 @@ import csv
 import logging
 import hashlib
 from pymongo import MongoClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from json import dumps
 from copy import deepcopy
 
-#custom imports
+# custom imports
 import settings 
 from lib.transformations import date_converter, str2bool
 from lib.security import encode
@@ -16,10 +16,11 @@ from lib.enedis_connector import get_data, init_webservice_client
 from lib.beedata_connector import BaseClient
 
 
-#init clients to reuse them through all services calls
+# init clients to reuse them through all services calls
 ws_client = init_webservice_client()
 beedata_client = BaseClient()
 logger = logging.getLogger("app")
+
 
 def connect_mongo():
     """ Return a connector to DataBase defined at settings """
@@ -63,6 +64,7 @@ def get_modification(row, number):
         
     return None
 
+
 def get_modification_dict(row, number, modification):
     """ Creates a dictionary for the row which will create the tariffHistory or powerHistory item
     
@@ -82,6 +84,7 @@ def get_modification_dict(row, number, modification):
 
     return result
 
+
 def get_contracts(paths):
     """ Creates a dictionary containing all contract information from the 3 required CSV
     
@@ -100,7 +103,7 @@ def get_contracts(paths):
     for contract in contracts:
         # creating document for beedata
         # date end that will be used for history creation
-        date_end = datetime(2099,1,1).strftime(settings.DATETIME_FORMAT)
+        date_end = datetime(2099, 1, 1).strftime(settings.DATETIME_FORMAT)
         if contract[settings.CONTRACT_COLUMNS['dateEnd']]: 
             try:
                 date_end = date_converter(contract[settings.CONTRACT_COLUMNS['dateEnd']], format='%d/%m/%Y', last_second=True, str_format=settings.DATETIME_FORMAT)
@@ -140,7 +143,7 @@ def get_contracts(paths):
         power_history = []
         for i in range(1, settings.MODIFICATIONS+1):
             if contract[settings.CONTRACTS_HISTORY_COLUMNS['dateStart']+'%s' % i]:
-                modification =  get_modification(contract, i)
+                modification = get_modification(contract, i)
                 if modification == 'tariffId':
                     tariff_history.append(get_modification_dict(contract, i, modification))
                 elif modification == 'power':
@@ -186,8 +189,7 @@ def get_contracts(paths):
             }
             contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['powerHistory'] = [contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['power_']]
         logger.debug('Created contracts documents successfully.')
-        
-        
+
         logger.debug('Adding authorization information...')
         for authorization in authorizations:
             # search on full authorization list
@@ -215,13 +217,12 @@ def get_contracts(paths):
                 }
                 break
             
-        if not 'auth' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]:
+        if 'auth' not in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]:
             # check if auth info is available, if not add to error list
             auth_errors.append(contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['contractId'])
             contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['error'] = {'auth': True}
         
         logger.debug('Authorization information successfully added.')
-            
         
         logger.debug('Adding discrimination hours information...')
         for hour in hours:
@@ -237,15 +238,15 @@ def get_contracts(paths):
                 if hour[settings.HOURS_COLUMNS['modification']] and date_end > mod_date:
                     if hour[settings.HOURS_COLUMNS['currentHours']]:
                         # add discrimination schedule on tariffHistory, tariffId, and tariff_ fields
-                        for t in  contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffHistory']:
+                        for t in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffHistory']:
                             if t['tariffId'] == contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
-                                t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']  + '~' +hour[settings.HOURS_COLUMNS['currentHours']]
-                        contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' +hour[settings.HOURS_COLUMNS['currentHours']]
-                        contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' +hour[settings.HOURS_COLUMNS['currentHours']] 
+                                t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                        contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                        contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
                 contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']['hours'] = hour[settings.HOURS_COLUMNS['currentHours']]
                 break
                 
-        if not 'hours' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']:
+        if 'hours' not in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']:
             # check if hours info is available, if not add to error list
             hours_errors.append(contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['contractId'])
             if 'error' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]:
@@ -261,8 +262,7 @@ def get_contracts(paths):
         logger.error('Authorization information not available for this contracts and won\'t be processed: [%s]' % auth_errors)
     if hours_errors:
         logger.error('Hours information not available for this contracts and won\'t be processed: [%s]' % hours_errors)
-        
-        
+
     logger.info('Contracts documents and required information successfully created.')
     logger.info('Contracts read: [%s]' % len(contracts_data.keys()))
     
@@ -278,7 +278,7 @@ def upload_contract(mongo_contract, data, current_etag, beedata_client):
     :param beedata_client: connector to Beedata API
     """
     contract_report = {}
-    if not mongo_contract or (mongo_contract and not 'etag' in mongo_contract):
+    if not mongo_contract or (mongo_contract and 'etag' not in mongo_contract):
         if beedata_client.get_contract(data['document']['contractId']):
             logger.debug('Contract [%s] already on Beedata API... Proceeding with a PATCH operation' % data['document']['contractId'])
             res = beedata_client.modify_contract(data['document'])
@@ -318,15 +318,17 @@ def upload_contract(mongo_contract, data, current_etag, beedata_client):
     
     return contract_report
 
-def get_measures_dates(authorization, date_start, date_end, contract, type, margindays, force_update):
+
+def get_measures_dates(authorization, date_start, date_end, contract, measures_type, margindays, force_update):
     """ Return from_date for given measure type. It has to determined between authorization files, contract dates and last measure stored on MongoDB
     
     :param authorization: contract authorization dict
     :param date_start: contract start date
     :param date_end: contract end date
     :param contract: document stored at mongoDB for this contract or None
-    :param type: measures type. One of PMAX, CDC, CONSOGLO
-    :param margindays: number of days we leave as margin 
+    :param measures_type: measures type. One of PMAX, CDC, CONSOGLO
+    :param margindays: number of days we leave as margin
+    :param force_update: boolean to force update of measures dates
     
     :return result dictionary with backward and forward from and to dates
     """
@@ -338,38 +340,37 @@ def get_measures_dates(authorization, date_start, date_end, contract, type, marg
     if mongo_contract:
         del mongo_contract['prm']
     
-    logger.debug('Arguments received for get dates ranges: dateStart [%s], dateEnd [%s], mongo_contract [%s], authorization [%s], type [%s]' % (date_start, date_end, mongo_contract, authorization, type))
-    if type == 'PMAX' or type =='CONSOGLO':
+    logger.debug('Arguments received for get dates ranges: dateStart [%s], dateEnd [%s], mongo_contract [%s], authorization [%s], type [%s]' % (date_start, date_end, mongo_contract, authorization, measures_type))
+    if measures_type == 'PMAX' or measures_type == 'CONSOGLO':
         result['min'] = max(date_start, datetime.now() - timedelta(days=1095)) if authorization['authDay'] else None
         # limit fetching from 2020 to now
-        result['min'] = max(result['min'], datetime.date(2020, 1, 1))
+        result['min'] = max(result['min'], date(2020, 1, 1))
         result['max'] = min(date_end, datetime.now() - timedelta(days=margindays)) if authorization['authDay'] else None
         if result['max'] and authorization['dateEndDay']:
             result['max'] = min(result['max'], authorization['dateEndDay']) if authorization['dateEndDay'] else result['max']
-    elif type == 'CDC':
+    elif measures_type == 'CDC':
         result['min'] = max(date_start,  datetime.now() - timedelta(days=1095), authorization['dateStart30']) if authorization['auth30'] else None
         # limit fetching from 2020 to now
-        result['min'] = max(result['min'], datetime.date(2020, 1, 1))
+        result['min'] = max(result['min'], date(2020, 1, 1))
         result['max'] = min(date_end, datetime.now() - timedelta(days=margindays)) if authorization['auth30'] else None
         if result['max']:
             result['max'] = min(result['max'], authorization['dateEnd30']) if authorization['dateEnd30'] else result['max']
 
     if not result['min'] or not result['max']:
         return None 
-    
-    
-    if not force_update and mongo_contract and 'ts_min_%s' % type in mongo_contract and mongo_contract['ts_min_%s' % type] and 'ts_max_%s' % type in mongo_contract and mongo_contract['ts_max_%s' % type]:
-        if mongo_contract['ts_min_%s' % type] > result['min']:
+
+    if not force_update and mongo_contract and 'ts_min_%s' % measures_type in mongo_contract and mongo_contract['ts_min_%s' % measures_type] and 'ts_max_%s' % measures_type in mongo_contract and mongo_contract['ts_max_%s' % measures_type]:
+        if mongo_contract['ts_min_%s' % measures_type] > result['min']:
             result['backward'] = {
                 'from_date': result['min'],
-                'to_date': mongo_contract['ts_min_%s' % type]
+                'to_date': mongo_contract['ts_min_%s' % measures_type]
             }
         else: 
             result['backward'] = None
         
-        if mongo_contract['ts_max_%s' % type] < result['max']:
+        if mongo_contract['ts_max_%s' % measures_type] < result['max']:
             result['forward'] = {
-                'from_date': mongo_contract['ts_max_%s' % type],
+                'from_date': mongo_contract['ts_max_%s' % measures_type],
                 'to_date': result['max']
             }
         else:
@@ -384,19 +385,20 @@ def get_measures_dates(authorization, date_start, date_end, contract, type, marg
         else:
             result = None 
     
-    logger.debug('Dates limits for [%s] measures: %s' % (type, result))
+    logger.debug('Dates limits for [%s] measures: %s' % (measures_type, result))
     
     return result
 
     
 def process_contract(id, data, customer_type, margindays, measure_types, force_update):
     """ Main function to process a single contract (upload or update contract on Beedata and add its measures too).
-    
+
     :param id: contractId. Main connector between Enercoop and Beedata
     :param data: contract document containing all information created on get_contracts
     :param customer_type: one of residential or tertiary
     :param margindays: number of days we leave as margin
     :param measure_types: measure types to recover from Enedis
+    :param force_update: force update of measures even if they are already in the database
     """
     
     if 'error' in data:
@@ -423,8 +425,7 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
     current_etag = document_etag(data['document'])
     contract_report = upload_contract(mongo_contract, data, current_etag, beedata_client)
     report['contract_report'] = contract_report
-        
-    
+
     # getting measures
     ts_min = {}
     ts_max = {}
@@ -446,10 +447,8 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
                 if dates['backward']:
                     logger.info('Starting "backward" loop to recover [CDC] measures for contract [%s] from [%s] to [%s]' % (id, dates['backward']['from_date'].strftime('%d/%m/%Y'), dates['backward']['to_date'].strftime('%d/%m/%Y')))
                     from_date = dates['backward']['to_date']
-                    #from_date = dates['backward']['from_date']
                     to_date = from_date - timedelta(days=7)
                     error = 0
-                    #while to_date > dates['backward']['to_date']:
                     while to_date > dates['backward']['from_date']:
                         logger.info('Recovering "backwards" [CDC] measures for contract [%s] from Enedis service: from [%s] to [%s]' % (id, to_date.strftime('%d/%m/%Y'), from_date.strftime('%d/%m/%Y')))
                         result2 = get_data(ws_client, data, i, customer_type, to_date, from_date)
@@ -457,7 +456,7 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
                             'from_date': to_date.strftime('%d/%m/%Y'),
                             'to_date': from_date.strftime('%d/%m/%Y'),
                         }
-                        if not 'error' in result2:
+                        if 'error' not in result2:
                             # Accumulate on 1 single document to POST
                             if not result:
                                 result = result2
@@ -480,9 +479,9 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
                     if result and len(result['measurements']) > 1:
                         aux = result['measurements']
                         report_results[i]['measures'] = len(aux)
-                        ts_min['CDC'] = sorted(aux, key = lambda j: j['timestamp'])[0]['timestamp']
+                        ts_min['CDC'] = sorted(aux, key=lambda j: j['timestamp'])[0]['timestamp']
                         if not dates['forward']:
-                            ts_max['CDC'] = sorted(aux, key = lambda j: j['timestamp'])[-1]['timestamp']
+                            ts_max['CDC'] = sorted(aux, key=lambda j: j['timestamp'])[-1]['timestamp']
                     else:
                         ts_min['CDC'] = mongo_contract['ts_min_CDC'] if 'ts_min_%s' % i in mongo_contract else None
                         ts_max['CDC'] = mongo_contract['ts_max_CDC'] if 'ts_max_%s' % i in mongo_contract else None
@@ -499,7 +498,7 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
                             'from_date': from_date.strftime('%d/%m/%Y'),
                             'to_date': to_date.strftime('%d/%m/%Y'),
                         }
-                        if not 'error' in result2:
+                        if 'error' not in result2:
                             # Accumulate on 1 single document to POST
                             if not result:
                                 result = result2
@@ -522,35 +521,26 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
                     if result and len(result['measurements']) > 1:
                         aux = result['measurements']
                         report_results[i]['measures'] = len(aux)
-                        ts_max['CDC'] = date_converter(sorted(aux, key = lambda j: j['timestamp'])[-1]['timestamp'], format=settings.DATETIME_FORMAT)
+                        ts_max['CDC'] = date_converter(sorted(aux, key=lambda j: j['timestamp'])[-1]['timestamp'], format=settings.DATETIME_FORMAT)
                     else:
                         ts_max['CDC'] = mongo_contract['ts_max_CDC'] if 'ts_min_%s' % i in mongo_contract else None
-                    
-                           
+
             else:
                 logger.info('Recovering [%s] measurements from Enedis service for contract [%s]...' % (i, id))
                 if dates['backward']:
                     from_date = dates['backward']['from_date']
                     to_date = dates['backward']['to_date']
-                    
-                    logger.info('Recovering "backwards" [%s] measurements from Enedis service for contract [%s]: from [%s] to [%s]...' % (i, id, from_date, to_date))
-                    result = get_data(ws_client, data, i, customer_type, from_date, to_date)
-                    report_results[i] = {
-                        'from_date': from_date.strftime('%d/%m/%Y'),
-                        'to_date': to_date.strftime('%d/%m/%Y'),
-                    }
-                    if not 'error' in result:
-                        aux = result['measurements']
-                        report_results[i]['measures'] = len(result['measurements'])
-                        ts_min[i] = sorted(aux, key = lambda j: j['timestamp'])[0]['timestamp']
-                        if not dates['forward']:
-                            ts_max[i] = sorted(aux, key = lambda j: j['timestamp'])[-1]['timestamp']
-                    else:
-                        ts_min[i] = mongo_contract['ts_min_%s' % i] if 'ts_min_%s' % i in mongo_contract else None
-                        if not dates['forward']:
-                            ts_max[i] = mongo_contract['ts_max_%s' % i] if 'ts_max_%s' % i in mongo_contract else None
-                        report_results[i]['error'] = result['error'] 
-                
+                    while from_date < to_date:
+                        result = fetch_backwards(
+                            i, from_date, to_date, data,
+                            customer_type, report_results, dates,
+                            ts_min, ts_max, mongo_contract
+                        )
+                        if 'error' in result and "autorisée que sur la période sur laquelle le client est détenteur du point" in result['error']:
+                            from_date = from_date + timedelta(days=30)
+                        else:
+                            break
+
                 if dates['forward']:
                     to_date = dates['forward']['to_date']
                     from_date = to_date - timedelta(days=365) if i == 'PMAX' else dates['forward']['from_date']
@@ -561,9 +551,9 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
                         'from_date': from_date.strftime('%d/%m/%Y'),
                         'to_date': to_date.strftime('%d/%m/%Y'),
                     }
-                    if not 'error' in result2:
+                    if 'error' not in result2:
                         # Accumulate on 1 single document to POST
-                        if not result or not 'measurements' in result:
+                        if not result or 'measurements' not in result:
                             result = result2
                         else:
                             # if there is everything created just add measurements we just recovered
@@ -571,22 +561,21 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
                             
                         aux = result['measurements']
                         report_results[i]['measures'] = len(result['measurements'])
-                        ts_max[i] = sorted(aux, key = lambda j: j['timestamp'])[-1]['timestamp']
+                        ts_max[i] = sorted(aux, key=lambda j: j['timestamp'])[-1]['timestamp']
                     else:
                         report_results[i]['error'] = result2['error'] 
                         ts_max[i] = mongo_contract['ts_max_%s' % i] if 'ts_max_%s' % i in mongo_contract else None
                     
         else:
             logger.debug('Contract [%s] does not have authorization for [%s] measures' % (id, i))       
-        
-        
+
         logger.debug('Sending [%s] data for contract [%s] to Beedata...' % (i, id))
         if result and 'measurements' in result and len(result['measurements']):
             api_result = beedata_client.send_data(result, 'measures')
             report_results[i]['beedata_call_status'] = api_result.status_code
             if api_result.status_code != 200:
                 report_results[i]['beedata_call_error'] = api_result.text 
-                logger.error('Error on POST measures to Beedata: %s' % (api_result.text))
+                logger.error('Error on POST measures to Beedata: %s' % api_result.text)
                 # if there is an error, update ts_min and ts_max to previous values
                 logger.debug('Using previous ts_min and ts_max values because we weren\'t able to send data to Beedata API.')
                 ts_min[i] = mongo_contract['ts_min_%s' % i] if 'ts_min_%s' % i in mongo_contract else None
@@ -594,11 +583,10 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
             else:
                 aux = result['measurements']
                 logger.info('Measures type [%s] successfully sent to Beedata. Measures loaded: [%s]' % (i, len(aux)))
-                logger.debug('Data for type [%s] is between [%s] and [%s]' % (i, sorted(aux, key = lambda j: j['timestamp'])[0]['timestamp'], sorted(aux, key = lambda j: j['timestamp'])[-1]['timestamp'])) 
+                logger.debug('Data for type [%s] is between [%s] and [%s]' % (i, sorted(aux, key=lambda j: j['timestamp'])[0]['timestamp'], sorted(aux, key=lambda j: j['timestamp'])[-1]['timestamp']))
         else:
             logger.info('No measures type [%s] for send to Beedata API.' % i)
 
-    
     report['measures_report'] = report_results
     logger.info('Updating mongo contract with ts_min values [%s] and ts_max values [%s]' % (ts_min, ts_max))
     update_mongo_contract(mongo_db, id, ts_min, ts_max, current_etag, data['csv'][settings.CONTRACT_COLUMNS['meteringPointId']])
@@ -606,8 +594,34 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
     logger.info('Loop for contract [%s] finished.' % id)
     
     return report
-    
-    
+
+
+def fetch_backwards(measure_type, from_date, to_date, data, customer_type, report_results, dates, ts_min, ts_max, mongo_contract):
+    logger.info(
+        'Recovering "backwards" [%s] measurements from Enedis service for contract [%s]: from [%s] to [%s]...' % (
+        measure_type, id, from_date, to_date))
+    result = get_data(ws_client, data, measure_type, customer_type, from_date, to_date)
+    report_results[measure_type] = {
+        'from_date': from_date.strftime('%d/%m/%Y'),
+        'to_date': to_date.strftime('%d/%m/%Y'),
+    }
+    if 'error' not in result:
+        aux = result['measurements']
+        report_results[measure_type]['measures'] = len(result['measurements'])
+        ts_min[measure_type] = sorted(aux, key=lambda j: j['timestamp'])[0]['timestamp']
+        if not dates['forward']:
+            ts_max[measure_type] = sorted(aux, key=lambda j: j['timestamp'])[-1][
+                'timestamp']
+    else:
+        ts_min[measure_type] = mongo_contract[
+            'ts_min_%s' % measure_type] if 'ts_min_%s' % measure_type in mongo_contract else None
+        if not dates['forward']:
+            ts_max[measure_type] = mongo_contract[
+                'ts_max_%s' % measure_type] if 'ts_max_%s' % measure_type in mongo_contract else None
+        report_results[measure_type]['error'] = result['error']
+    return result
+
+
 def document_etag(value):
     """ Creates a value that will be used to know if contract has changed or not since last execution
     
@@ -615,8 +629,7 @@ def document_etag(value):
     """
     h = hashlib.sha1()
     h.update(dumps(value, sort_keys=True).encode("utf-8"))
-    return h.hexdigest()    
-        
+    return h.hexdigest()
     
     
 def update_mongo_contract(mongo_db, id, ts_min, ts_max, etag, prm):
