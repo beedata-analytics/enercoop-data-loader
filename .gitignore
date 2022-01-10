@@ -6,3 +6,5 @@ __pycache__/
 # variables and security settings
 settings.py
 .idea
+
+log/
