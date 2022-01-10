@@ -341,16 +341,19 @@ def get_measures_dates(authorization, date_start, date_end, contract, type, marg
     logger.debug('Arguments received for get dates ranges: dateStart [%s], dateEnd [%s], mongo_contract [%s], authorization [%s], type [%s]' % (date_start, date_end, mongo_contract, authorization, type))
     if type == 'PMAX' or type =='CONSOGLO':
         result['min'] = max(date_start, datetime.now() - timedelta(days=1095)) if authorization['authDay'] else None
+        # limit fetching from 2020 to now
+        result['min'] = max(result['min'], datetime.date(2020, 1, 1))
         result['max'] = min(date_end, datetime.now() - timedelta(days=margindays)) if authorization['authDay'] else None
         if result['max'] and authorization['dateEndDay']:
             result['max'] = min(result['max'], authorization['dateEndDay']) if authorization['dateEndDay'] else result['max']
     elif type == 'CDC':
         result['min'] = max(date_start,  datetime.now() - timedelta(days=1095), authorization['dateStart30']) if authorization['auth30'] else None
+        # limit fetching from 2020 to now
+        result['min'] = max(result['min'], datetime.date(2020, 1, 1))
         result['max'] = min(date_end, datetime.now() - timedelta(days=margindays)) if authorization['auth30'] else None
         if result['max']:
             result['max'] = min(result['max'], authorization['dateEnd30']) if authorization['dateEnd30'] else result['max']
-    
-    
+
     if not result['min'] or not result['max']:
         return None 
     
