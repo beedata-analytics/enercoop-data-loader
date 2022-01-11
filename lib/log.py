@@ -13,8 +13,8 @@ def process_log(filename):
     )
 
     issues = []
-    with open(filename, "r") as file:
-        for line in file:
+    with open(filename, "r") as f:
+        for line in f:
             matches = re.search(regex, line)
             if matches:
                 contrat = matches.group(1)
@@ -33,7 +33,7 @@ def process_log(filename):
                     "grandeurPhysique": data["grandeurPhysique"],
                 })
 
-    with open(filename.replace(".log", ".csv"), 'w', encoding='utf8', newline='') as output_file:
+    with open(filename.replace(".log", ".csv"), 'w') as output_file:
         fc = csv.DictWriter(output_file, fieldnames=issues[0].keys())
         fc.writeheader()
         fc.writerows(issues)
