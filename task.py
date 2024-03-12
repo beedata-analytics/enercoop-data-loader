@@ -9,11 +9,11 @@ from multiprocessing import Pool
 
 # custom imports
 from lib.utils import get_contracts, process_contract, connect_mongo
-from lib.report import Report
+#from lib.report import Report
 
 
-mongo_db = connect_mongo()
-report = Report(mongo_db)
+#mongo_db = connect_mongo()
+#report = Report(mongo_db)
 
 
 def setup_logger(args):
@@ -59,8 +59,8 @@ def multi_load(item):
         force_update
     )
     
-    if result:
-        report.add_results(item['contract'], result)
+    #if result:
+    #    report.add_results(item['contract'], result)
 
 def run(args):
     """Main thread. Get parameters from CLI and decides when to run with single thread or using multiprocess
@@ -71,7 +71,7 @@ def run(args):
     logger.info('Starting script... ')
     
     contracts = get_contracts(args)
-    report.add_num_contracts(len(contracts.keys()))
+    #report.add_num_contracts(len(contracts.keys()))
     
     margindays = args.margindays
     measure_types = args.type
@@ -83,8 +83,8 @@ def run(args):
         for contract, data in contracts.items():
             result = process_contract(contract, data, data['contract_type'], #mongo_db, ws_client, beedata_client, 
                                       margindays, measure_types, force_update)
-            if result:
-                report.add_results(contract, result)
+            #if result:
+            #    report.add_results(contract, result)
     else:
         logger.info('Processing files with [%s] threads' % args.processes)
         dict_list = []
@@ -96,7 +96,7 @@ def run(args):
             })
         pool = Pool(processes=int(args.processes))
         pool.map(multi_load, dict_list)
-    report.finish()
+    #report.finish()
     logger.info('Script finished. ')
     
     
@@ -116,7 +116,7 @@ if __name__ == '__main__':
                         help='Number of threads used to process (max should be lower than the number of cores available). Default to 1.')
     parser.add_argument('--margindays', type=int, default=10,
                         help='Number of days to let some margin. It will set "top" date as: today - margindays. Default to 10.')
-    parser.add_argument('--type', type=str, choices=['PMAX', 'CONSOGLO', 'CDC', 'ALL'], default='ALL',
+    parser.add_argument('--type', type=str, choices=['PMAX', 'CONSOGLO', 'CDC', 'ALL', 'NONE'], default='ALL',
                         help='Measures type to recover.')
     parser.add_argument('--forceupdate', type=str, choices=['YES', 'NO'], default='NO',
                         help='Force update ignoring stored dates from database.')

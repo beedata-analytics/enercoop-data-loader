@@ -11,13 +11,13 @@ from copy import deepcopy
 # custom imports
 import settings 
 from lib.transformations import date_converter, str2bool
-from lib.security import encode
-from lib.enedis_connector import get_data, init_webservice_client
+#from lib.security import encode
+#from lib.enedis_connector import get_data, init_webservice_client
 from lib.beedata_connector import BaseClient
 
 
 # init clients to reuse them through all services calls
-ws_client = init_webservice_client()
+#ws_client = init_webservice_client()
 beedata_client = BaseClient()
 logger = logging.getLogger("app")
 
@@ -43,7 +43,8 @@ def read_csv_file(path, delimiter=','):
     :param path: Path where file is
     :param delimiter: Delimiter for CSV file. Default ';'
     """
-    with open(path, mode='r', encoding='utf-8') as csv_file:
+    #with open(path, mode='r', encoding='utf-8') as csv_file:
+    with open(path, mode='r') as csv_file:
         csv_reader = csv.DictReader(csv_file, delimiter=delimiter)
         rows = []
         for row in csv_reader:
@@ -125,13 +126,13 @@ def get_contracts(paths):
                 'power': int(float(contract[settings.CONTRACT_COLUMNS['power']])*1000),
                 'tariffCostId': str(int(float(contract[settings.CONTRACT_COLUMNS['power']])*1000)/1000),
                 'tariffId': contract[settings.CONTRACT_COLUMNS['tariffId']],
-                'meteringPointId': encode(contract[settings.CONTRACT_COLUMNS['meteringPointId']]),
-                'activityCode': contract[settings.CONTRACT_COLUMNS['activityCode']],
+                'meteringPointId': contract[settings.CONTRACT_COLUMNS['meteringPointId']],
+                #'activityCode': contract[settings.CONTRACT_COLUMNS['activityCode']],
                 'customFields': {},
                 'devices': [{
                     'dateStart': date_converter(contract[settings.CONTRACT_COLUMNS['dateStart']], format=settings.CONTRACTS_DATETIME_FORMAT, str_format=settings.DATETIME_FORMAT),
                     'dateEnd': date_end,
-                    'deviceId': encode(contract[settings.CONTRACT_COLUMNS['meteringPointId']])
+                    'deviceId': contract[settings.CONTRACT_COLUMNS['meteringPointId']]
                 }]
             },
             'contract_type': 'residential' if contract[settings.CONTRACT_COLUMNS['contract_type']].lower() == 'particulier' else 'tertiary'
@@ -406,9 +407,10 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
     }
     
     logger.info('Processing contract: [%s]...' % id)
-    logger.debug('Getting stored data from MongoDB...')
-    mongo_db = connect_mongo()
-    mongo_contract = mongo_db['Contracts'].find_one({'contractId': id})
+    #logger.debug('Getting stored data from MongoDB...')
+    #mongo_db = connect_mongo()
+    mongo_contract = {} #mongo_db['Contracts'].find_one({'contractId': id})
+    """
     if mongo_contract:
         for field, value in mongo_contract.items():
             if 'ts_' in field and value and isinstance(value, str):
@@ -416,7 +418,7 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
         logger.debug('Info recovered from MongoDB for contract [%s]: %s' % (id, mongo_contract))
     else:
         mongo_contract = {}
-    
+    """
     logger.debug('Deciding if contract should be POSTed or PATCHed')
     current_etag = document_etag(data['document'])
     contract_report = upload_contract(mongo_contract, data, current_etag, beedata_client)
@@ -432,7 +434,12 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
     }
 
     # set measure types to recover
-    types = ['PMAX', 'CONSOGLO', 'CDC'] if measure_types == 'ALL' else [measure_types]
+    if measure_types == 'ALL':
+        types = ['PMAX', 'CONSOGLO', 'CDC']
+    elif measure_types == 'NONE':
+        types = []
+    else:
+        types = [measure_types]
 
     # repeat for each measure type
     for i in types:
@@ -585,7 +592,7 @@ def process_contract(id, data, customer_type, margindays, measure_types, force_u
 
     report['measures_report'] = report_results
     logger.info('Updating mongo contract with ts_min values [%s] and ts_max values [%s]' % (ts_min, ts_max))
-    update_mongo_contract(mongo_db, id, ts_min, ts_max, current_etag, data['csv'][settings.CONTRACT_COLUMNS['meteringPointId']])
+    #update_mongo_contract(mongo_db, id, ts_min, ts_max, current_etag, data['csv'][settings.CONTRACT_COLUMNS['meteringPointId']])
     report['finish'] = datetime.now()
     logger.info('Loop for contract [%s] finished.' % id)
     
