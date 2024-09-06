@@ -77,16 +77,19 @@ class BaseClient(object):
         return response
         
 
-    def modify_contract(self, data):
+    def modify_contract(self, data, _etag=None):
         """ Function to PATCH contract getting its etag from BeeData API.
         
         :param data: data to send on PATCH
         """
         # GET request to recover _etag field from BeeData API
-        response = request('GET', settings.BEEDATA_BASE_URL + settings.BEEDATA_ENDPOINTS['contracts'] + '/%s' % data['contractId'],
-                           cookies=self.cookie or self.do_login(), headers=self.http_headers,
-                           cert=self.certificate, verify=False)
-        response = response.json()
+        if not _etag:
+            response = request('GET', settings.BEEDATA_BASE_URL + settings.BEEDATA_ENDPOINTS['contracts'] + '/%s' % data['contractId'],
+                               cookies=self.cookie or self.do_login(), headers=self.http_headers,
+                               cert=self.certificate, verify=False)
+            response = response.json()
+        else:
+            response = {'_etag': _etag }
 
         # If the contract already exists in BeeData a PATCH is needed else we need to create the new contract in BeeData
         if '_etag' in response:

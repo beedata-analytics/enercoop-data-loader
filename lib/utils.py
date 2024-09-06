@@ -128,7 +128,9 @@ def get_contracts(paths):
                 'tariffId': contract[settings.CONTRACT_COLUMNS['tariffId']],
                 'meteringPointId': contract[settings.CONTRACT_COLUMNS['meteringPointId']],
                 #'activityCode': contract[settings.CONTRACT_COLUMNS['activityCode']],
-                'customFields': {},
+                'customFields': {
+                                   'power_type': contract[settings.CONTRACT_COLUMNS['power_type']]
+                },
                 'devices': [{
                     'dateStart': date_converter(contract[settings.CONTRACT_COLUMNS['dateStart']], format=settings.CONTRACTS_DATETIME_FORMAT, str_format=settings.DATETIME_FORMAT),
                     'dateEnd': date_end,
@@ -241,9 +243,30 @@ def get_contracts(paths):
                         # add discrimination schedule on tariffHistory, tariffId, and tariff_ fields
                         for t in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffHistory']:
                             if t['tariffId'] == contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
-                                t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
-                        contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
-                        contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                                if 'SDT' not in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
+                                    if 'CDD ' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
+                                        t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + ' ( Pro. )' + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                                    else:
+                                        t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                                else:
+                                    if 'CDD ' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
+                                        t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + ' ( Pro. )'
+                                    else:
+                                        t['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']
+                        if 'SDT' not in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
+                            if 'CDD ' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + ' ( Pro. )' + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + ' ( Pro. )' + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                            else:
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + '~' + hour[settings.HOURS_COLUMNS['currentHours']]    
+                        else:
+                            if 'CDD ' in contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']:
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + ' ( Pro. )'
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] + ' ( Pro. )'
+                            else:
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariff_']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']
+                                contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId'] = contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['tariffId']
                 contracts_data[contract[settings.CONTRACT_COLUMNS['contractId']]]['document']['customFields']['hours'] = hour[settings.HOURS_COLUMNS['currentHours']]
                 break
                 
@@ -280,9 +303,11 @@ def upload_contract(mongo_contract, data, current_etag, beedata_client):
     """
     contract_report = {}
     if not mongo_contract or (mongo_contract and 'etag' not in mongo_contract):
-        if beedata_client.get_contract(data['document']['contractId']):
+    	aux_ = beedata_client.get_contract(data['document']['contractId'])
+        _etag = aux_.get('_etag',None) if aux_ else None
+        if _etag:
             logger.debug('Contract [%s] already on Beedata API... Proceeding with a PATCH operation' % data['document']['contractId'])
-            res = beedata_client.modify_contract(data['document'])
+            res = beedata_client.modify_contract(data['document'], _etag)
             contract_report['contracts_api_call'] = 'PATCH'
             contract_report['contracts_api_status'] = res.status_code
             if res.status_code != 200:
